@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>My Maps Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    #map {
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #passwordDiv {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    #passwordInput,
+    #submitBtn {
+      width: 90%;
+      max-width: 400px;
+      padding: 1em;
+      font-size: 1.2em;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    #passwordInput {
+      border: 1px solid #aaa;
+    }
+
+    #submitBtn {
+      margin-top: 0.8em;
+      border: none;
+      background: #4285F4;
+      color: white;
+    }
+
+    #msg {
+      margin-top: 0.6em;
+      color: red;
+    }
+  </style>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE"></script>
+</head>
+<body>
+
+<div id="passwordDiv">
+  <h2>パスワードを入力してください</h2>
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button id="submitBtn">表示</button>
+  <p id="msg"></p>
+</div>
+
+<div id="map"></div>
+
+<script>
+  const correctPassword = "1914";
+
+  const submitBtn = document.getElementById("submitBtn");
+  const passwordInput = document.getElementById("passwordInput");
+  const passwordDiv = document.getElementById("passwordDiv");
+  const msg = document.getElementById("msg");
+
+  let map;
+
+  submitBtn.onclick = () => {
+    if (passwordInput.value === correctPassword) {
+      passwordDiv.style.display = "none";
+      initMap();
+    } else {
+      msg.textContent = "パスワードが違います。";
+    }
+  };
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 35.68, lng: 139.76 },
+      zoom: 14
+    });
+
+    const params = new URLSearchParams(location.search);
+    const mid = params.get("mid");
+    if (!mid) return;
+
+    const kmlUrl =
+      `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
+
+    fetch(kmlUrl)
+      .then(res => res.text())
+      .then(text => parseKml(text))
+      .catch(err => console.error(err));
+  }
+
+  function parseKml(kmlText) {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(kmlText, "application/xml");
+
+    const folders = xml.getElementsByTagName("Folder");
+    const bounds = new google.maps.LatLngBounds();
+
+    for (const folder of folders) {
+      const folderName =
+        folder.getElementsByTagName("name")[0]?.textContent || "";
+
+      let color = "red";
+      if (folderName === "ビジネス") color = "blue";
+      if (folderName === "訪問しないお宅") color = "red";
+
+      const placemarks = folder.getElementsByTagName("Placemark");
+
+      for (const pm of placemarks) {
+        const coordText =
+          pm.getElementsByTagName("coordinates")[0]?.textContent.trim();
+        if (!coordText) continue;
+
+        const [lng, lat] = coordText.split(",").map(Number);
+        const position = { lat, lng };
+
+        new google.maps.Marker({
+          position,
+          map,
+          icon: getPin(color)
+        });
+
+        bounds.extend(position);
+      }
+    }
+
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds);
+    }
+  }
+
+  function getPin(color) {
+    return {
+      path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+      scale: 5,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeColor: "white",
+      strokeWeight: 1
+    };
+  }
+</script>
+
+</body>
+</html>
