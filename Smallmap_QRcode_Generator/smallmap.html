@@ -2,25 +2,132 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<title>Small Area Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Maps iframe test</title>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
 html, body {
   margin: 0;
   height: 100%;
 }
-iframe {
+#map {
   width: 100%;
   height: 100%;
-  border: 0;
+}
+#passwordDiv {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+#passwordInput, #submitBtn {
+  width: 90%;
+  max-width: 400px;
+  padding: 1em;
+  font-size: 1.2em;
+}
+#submitBtn {
+  margin-top: .8em;
 }
 </style>
 </head>
 <body>
 
-<iframe
-  src="https://www.google.com/maps/d/embed?mid=18SNmKJzISnJgcwd9BR0udjWVw1GOcjA">
-</iframe>
+<div id="passwordDiv">
+  <h2>パスワードを入力してください</h2>
+  <input type="password" id="passwordInput">
+  <button id="submitBtn">表示</button>
+  <p id="msg"></p>
+</div>
+
+<div id="map"></div>
+
+<script>
+const correctPassword = "1914";
+
+document.getElementById("submitBtn").onclick = () => {
+  if (passwordInput.value === correctPassword) {
+    passwordDiv.style.display = "none";
+    initMap();
+  } else {
+    msg.textContent = "パスワードが違います";
+  }
+};
+
+async function initMap() {
+  const mid = new URLSearchParams(location.search).get("mid");
+  if (!mid) return;
+
+  const map = L.map("map");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(map);
+
+  const kmlUrl =
+    `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
+
+  const text = await fetch(kmlUrl).then(r => r.text());
+  const xml = new DOMParser().parseFromString(text, "text/xml");
+
+  const bounds = [];
+
+  // Folder 単位で処理
+  xml.querySelectorAll("Folder").forEach(folder => {
+    const folderName =
+      folder.querySelector("name")?.textContent.trim();
+
+    let color = "gray";
+    if (folderName === "ビジネス") color = "blue";
+    if (folderName === "訪問しないお宅") color = "red";
+
+    // Placemark（ポイント）
+    folder.querySelectorAll("Placemark").forEach(pm => {
+      const coord = pm.querySelector("Point coordinates");
+      if (coord) {
+        const [lng, lat] = coord.textContent.trim().split(",").map(Number);
+        bounds.push([lat, lng]);
+
+        L.circleMarker([lat, lng], {
+          radius: 7,
+          color: color,
+          fillColor: color,
+          fillOpacity: 1
+        }).addTo(map);
+      }
+
+      // ポリゴン
+      const poly = pm.querySelector("Polygon coordinates");
+      if (poly) {
+        const latlngs = poly.textContent.trim().split(/\s+/).map(c => {
+          const [lng, lat] = c.split(",").map(Number);
+          bounds.push([lat, lng]);
+          return [lat, lng];
+        });
+
+        L.polygon(latlngs, {
+          color: "#555",
+          weight: 2,
+          fillOpacity: 0.1
+        }).addTo(map);
+      }
+    });
+  });
+
+  if (bounds.length) {
+    map.fitBounds(bounds);
+  }
+}
+</script>
 
 </body>
 </html>
