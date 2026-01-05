@@ -7,18 +7,16 @@
 
 <style>
   #map { height: 100vh; width: 100vw; }
-
   #passwordDiv {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.95);
+    background: rgba(255,255,255,.95);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1000;
   }
-
   #passwordInput, #submitBtn {
     width: 90%;
     max-width: 400px;
@@ -26,18 +24,15 @@
     font-size: 1.2em;
     border-radius: 8px;
   }
-
   #submitBtn {
     margin-top: .8em;
     border: none;
     background: #4285F4;
     color: white;
   }
-
   #msg { color: red; margin-top: .6em; }
 </style>
 
-<!-- ★ marker ライブラリ必須 -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE&libraries=marker"></script>
 </head>
 <body>
@@ -68,16 +63,13 @@ function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 35.68, lng: 139.76 },
     zoom: 14,
-    mapId: "DEMO_MAP_ID" // 任意（なくてもOK）
+    mapId: "18SNmKJzISnJgcwd9BR0udjWVw1GOcjA&usp" // ★ 実在する Map ID
   });
 
   const mid = new URLSearchParams(location.search).get("mid");
   if (!mid) return;
 
-  const kmlUrl =
-    `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
-
-  fetch(kmlUrl)
+  fetch(`https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`)
     .then(r => r.text())
     .then(parseKml);
 }
@@ -89,7 +81,6 @@ function parseKml(text) {
 
   for (const folder of folders) {
     const name = folder.getElementsByTagName("name")[0]?.textContent || "";
-
     const pin = createPin(name);
 
     for (const pm of folder.getElementsByTagName("Placemark")) {
@@ -116,13 +107,11 @@ function createPin(folderName) {
   let bg = "#d93025"; // 赤
   if (folderName === "ビジネス") bg = "#1a73e8"; // 青
 
-  const pin = new google.maps.marker.PinElement({
+  return new google.maps.marker.PinElement({
     background: bg,
     borderColor: "#ffffff",
     glyphColor: "#ffffff"
-  });
-
-  return pin.element;
+  }).element;
 }
 </script>
 
