@@ -2,21 +2,23 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>My Maps Viewer</title>
+<title>Small Area Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
   #map { height: 100vh; width: 100vw; }
+
   #passwordDiv {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,.95);
+    background: rgba(255,255,255,0.95);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1000;
   }
+
   #passwordInput, #submitBtn {
     width: 90%;
     max-width: 400px;
@@ -24,16 +26,18 @@
     font-size: 1.2em;
     border-radius: 8px;
   }
+
   #submitBtn {
     margin-top: .8em;
     border: none;
     background: #4285F4;
     color: white;
   }
+
   #msg { color: red; margin-top: .6em; }
 </style>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE&libraries=marker"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE"></script>
 </head>
 <body>
 
@@ -48,6 +52,12 @@
 
 <script>
 const correctPassword = "1914";
+
+const submitBtn = document.getElementById("submitBtn");
+const passwordInput = document.getElementById("passwordInput");
+const passwordDiv = document.getElementById("passwordDiv");
+const msg = document.getElementById("msg");
+
 let map;
 
 submitBtn.onclick = () => {
@@ -62,56 +72,72 @@ submitBtn.onclick = () => {
 function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 35.68, lng: 139.76 },
-    zoom: 14,
-    mapId: "18SNmKJzISnJgcwd9BR0udjWVw1GOcjA&usp" // ★ 実在する Map ID
+    zoom: 14
   });
 
   const mid = new URLSearchParams(location.search).get("mid");
-  if (!mid) return;
+  if (!mid) {
+    console.error("mid がありません");
+    return;
+  }
 
-  fetch(`https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`)
+  const kmlUrl =
+    `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
+
+  fetch(kmlUrl)
     .then(r => r.text())
-    .then(parseKml);
+    .then(parseKml)
+    .catch(e => console.error(e));
 }
 
-function parseKml(text) {
-  const xml = new DOMParser().parseFromString(text, "application/xml");
+function parseKml(kmlText) {
+  const xml = new DOMParser().parseFromString(kmlText, "application/xml");
   const folders = xml.getElementsByTagName("Folder");
   const bounds = new google.maps.LatLngBounds();
 
   for (const folder of folders) {
-    const name = folder.getElementsByTagName("name")[0]?.textContent || "";
-    const pin = createPin(name);
+    const folderName =
+      folder.getElementsByTagName("name")[0]?.textContent || "";
 
-    for (const pm of folder.getElementsByTagName("Placemark")) {
-      const c = pm.getElementsByTagName("coordinates")[0]?.textContent;
-      if (!c) continue;
+    const iconUrl = getPinByFolderName(folderName);
 
-      const [lng, lat] = c.trim().split(",").map(Number);
+    const placemarks = folder.getElementsByTagName("Placemark");
+
+    for (const pm of placemarks) {
+      // ★ Style / styleUrl / IconStyle は一切見ない
+      const coordNode =
+        pm.getElementsByTagName("Point")[0]
+          ?.getElementsByTagName("coordinates")[0];
+
+      if (!coordNode) continue;
+
+      const [lng, lat] = coordNode.textContent.trim().split(",").map(Number);
       const pos = { lat, lng };
 
-      new google.maps.marker.AdvancedMarkerElement({
+      new google.maps.Marker({
         map,
         position: pos,
-        content: pin.cloneNode(true)
+        icon: iconUrl
       });
 
       bounds.extend(pos);
     }
   }
 
-  if (!bounds.isEmpty()) map.fitBounds(bounds);
+  if (!bounds.isEmpty()) {
+    map.fitBounds(bounds);
+  }
 }
 
-function createPin(folderName) {
-  let bg = "#d93025"; // 赤
-  if (folderName === "ビジネス") bg = "#1a73e8"; // 青
-
-  return new google.maps.marker.PinElement({
-    background: bg,
-    borderColor: "#ffffff",
-    glyphColor: "#ffffff"
-  }).element;
+// ★ 色分けはここだけ
+function getPinByFolderName(name) {
+  if (name === "ビジネス") {
+    return "https://maps.google.com/mapfiles/ms/icons/blue-dot.png";
+  }
+  if (name === "訪問しないお宅") {
+    return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+  }
+  return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
 }
 </script>
 
