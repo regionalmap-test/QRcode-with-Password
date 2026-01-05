@@ -1,63 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <title>My Maps Viewer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<title>My Maps Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    #map {
-      height: 100vh;
-      width: 100vw;
-    }
+<style>
+  #map { height: 100vh; width: 100vw; }
 
-    #passwordDiv {
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.95);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      z-index: 1000;
-      padding: 20px;
-    }
+  #passwordDiv {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
 
-    #passwordInput,
-    #submitBtn {
-      width: 90%;
-      max-width: 400px;
-      padding: 1em;
-      font-size: 1.2em;
-      border-radius: 8px;
-      box-sizing: border-box;
-    }
+  #passwordInput, #submitBtn {
+    width: 90%;
+    max-width: 400px;
+    padding: 1em;
+    font-size: 1.2em;
+    border-radius: 8px;
+  }
 
-    #passwordInput {
-      border: 1px solid #aaa;
-    }
+  #submitBtn {
+    margin-top: .8em;
+    border: none;
+    background: #4285F4;
+    color: white;
+  }
 
-    #submitBtn {
-      margin-top: 0.8em;
-      border: none;
-      background: #4285F4;
-      color: white;
-    }
+  #msg { color: red; margin-top: .6em; }
+</style>
 
-    #msg {
-      margin-top: 0.6em;
-      color: red;
-    }
-  </style>
-
-  <!-- Google Maps API -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE"></script>
+<!-- ★ marker ライブラリ必須 -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE&libraries=marker"></script>
 </head>
 <body>
 
 <div id="passwordDiv">
   <h2>パスワードを入力してください</h2>
-  <input type="password" id="passwordInput" placeholder="パスワード">
+  <input type="password" id="passwordInput">
   <button id="submitBtn">表示</button>
   <p id="msg"></p>
 </div>
@@ -65,4 +52,79 @@
 <div id="map"></div>
 
 <script>
-  const correct
+const correctPassword = "1914";
+let map;
+
+submitBtn.onclick = () => {
+  if (passwordInput.value === correctPassword) {
+    passwordDiv.style.display = "none";
+    initMap();
+  } else {
+    msg.textContent = "パスワードが違います。";
+  }
+};
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 35.68, lng: 139.76 },
+    zoom: 14,
+    mapId: "DEMO_MAP_ID" // 任意（なくてもOK）
+  });
+
+  const mid = new URLSearchParams(location.search).get("mid");
+  if (!mid) return;
+
+  const kmlUrl =
+    `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
+
+  fetch(kmlUrl)
+    .then(r => r.text())
+    .then(parseKml);
+}
+
+function parseKml(text) {
+  const xml = new DOMParser().parseFromString(text, "application/xml");
+  const folders = xml.getElementsByTagName("Folder");
+  const bounds = new google.maps.LatLngBounds();
+
+  for (const folder of folders) {
+    const name = folder.getElementsByTagName("name")[0]?.textContent || "";
+
+    const pin = createPin(name);
+
+    for (const pm of folder.getElementsByTagName("Placemark")) {
+      const c = pm.getElementsByTagName("coordinates")[0]?.textContent;
+      if (!c) continue;
+
+      const [lng, lat] = c.trim().split(",").map(Number);
+      const pos = { lat, lng };
+
+      new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: pos,
+        content: pin.cloneNode(true)
+      });
+
+      bounds.extend(pos);
+    }
+  }
+
+  if (!bounds.isEmpty()) map.fitBounds(bounds);
+}
+
+function createPin(folderName) {
+  let bg = "#d93025"; // 赤
+  if (folderName === "ビジネス") bg = "#1a73e8"; // 青
+
+  const pin = new google.maps.marker.PinElement({
+    background: bg,
+    borderColor: "#ffffff",
+    glyphColor: "#ffffff"
+  });
+
+  return pin.element;
+}
+</script>
+
+</body>
+</html>
