@@ -5,64 +5,33 @@
 <title>Small Area Map (Leaflet)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet -->
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Omnivore (KML loader) -->
 <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
 
 <style>
-  #map {
-    height: 100vh;
-    width: 100vw;
-  }
-
-  #passwordDiv {
-    position: fixed;
-    inset: 0;
-    background: rgba(255,255,255,0.95);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    z-index: 1000;
-    padding: 20px;
-  }
-
-  #passwordInput,
-  #submitBtn {
-    width: 90%;
-    max-width: 400px;
-    padding: 1em;
-    font-size: 1.2em;
-    border-radius: 8px;
-    box-sizing: border-box;
-  }
-
-  #submitBtn {
-    margin-top: 0.8em;
-    border: none;
-    background: #4285F4;
-    color: white;
-  }
-
-  #msg {
-    margin-top: 0.6em;
-    color: red;
-  }
+#map { height: 100vh; width: 100vw; }
+#passwordDiv {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.95);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+}
+#passwordInput, #submitBtn {
+  width: 90%; max-width: 400px;
+  padding: 1em; font-size: 1.2em;
+}
+#submitBtn { margin-top: .8em; }
 </style>
 </head>
 <body>
 
 <div id="passwordDiv">
   <h2>パスワードを入力してください</h2>
-  <input type="password" id="passwordInput" placeholder="パスワード">
+  <input id="passwordInput" type="password">
   <button id="submitBtn">表示</button>
   <p id="msg"></p>
 </div>
@@ -72,5 +41,49 @@
 <script>
 const correctPassword = "1914";
 
-const submitBtn = document.getElementById("submitBtn");
-const passwordInput = document.getElementById("p
+document.getElementById("submitBtn").onclick = () => {
+  if (passwordInput.value === correctPassword) {
+    passwordDiv.style.display = "none";
+    initMap();
+  }
+};
+
+function getColorByFolder(name) {
+  if (name === "ビジネス") return "blue";
+  if (name === "訪問しないお宅") return "red";
+  return "gray";
+}
+
+function initMap() {
+  const mid = new URLSearchParams(location.search).get("mid");
+
+  const map = L.map("map");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(map);
+
+  const kmlUrl =
+    `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
+
+  omnivore.kml(kmlUrl, null, L.geoJSON(null, {
+    pointToLayer: (feature, latlng) => {
+      const folder = feature.properties.folder || "";
+      const color = getColorByFolder(folder);
+
+      return L.circleMarker(latlng, {
+        radius: 8,
+        color,
+        fillColor: color,
+        fillOpacity: 1
+      });
+    }
+  }))
+  .on("ready", function () {
+    map.fitBounds(this.getBounds());
+  })
+  .addTo(map);
+}
+</script>
+
+</body>
+</html>
