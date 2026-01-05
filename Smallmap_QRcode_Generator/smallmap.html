@@ -6,35 +6,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-  #map { height: 100vh; width: 100vw; }
+  #map {
+    height: 100vh;
+    width: 100vw;
+  }
 
   #passwordDiv {
     position: absolute;
     inset: 0;
     background: rgba(255,255,255,0.95);
     display: flex;
-    flex-direction: column;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    flex-direction: column;
     z-index: 1000;
+    padding: 20px;
   }
 
-  #passwordInput, #submitBtn {
+  #passwordInput,
+  #submitBtn {
     width: 90%;
     max-width: 400px;
     padding: 1em;
     font-size: 1.2em;
     border-radius: 8px;
+    box-sizing: border-box;
   }
 
   #submitBtn {
-    margin-top: .8em;
+    margin-top: 0.8em;
     border: none;
     background: #4285F4;
     color: white;
   }
 
-  #msg { color: red; margin-top: .6em; }
+  #msg {
+    margin-top: 0.6em;
+    color: red;
+  }
 </style>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE"></script>
@@ -43,7 +52,7 @@
 
 <div id="passwordDiv">
   <h2>パスワードを入力してください</h2>
-  <input type="password" id="passwordInput">
+  <input type="password" id="passwordInput" placeholder="パスワード">
   <button id="submitBtn">表示</button>
   <p id="msg"></p>
 </div>
@@ -70,74 +79,28 @@ submitBtn.onclick = () => {
 };
 
 function initMap() {
+  const params = new URLSearchParams(location.search);
+  const mid = params.get("mid");
+  if (!mid) return;
+
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 35.68, lng: 139.76 },
-    zoom: 14
+    zoom: 15
   });
-
-  const mid = new URLSearchParams(location.search).get("mid");
-  if (!mid) {
-    console.error("mid がありません");
-    return;
-  }
 
   const kmlUrl =
     `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${Date.now()}`;
 
-  fetch(kmlUrl)
-    .then(r => r.text())
-    .then(parseKml)
-    .catch(e => console.error(e));
-}
+  const kmlLayer = new google.maps.KmlLayer({
+    url: kmlUrl,
+    map: map,
+    preserveViewport: false
+  });
 
-function parseKml(kmlText) {
-  const xml = new DOMParser().parseFromString(kmlText, "application/xml");
-  const folders = xml.getElementsByTagName("Folder");
-  const bounds = new google.maps.LatLngBounds();
-
-  for (const folder of folders) {
-    const folderName =
-      folder.getElementsByTagName("name")[0]?.textContent || "";
-
-    const iconUrl = getPinByFolderName(folderName);
-
-    const placemarks = folder.getElementsByTagName("Placemark");
-
-    for (const pm of placemarks) {
-      // ★ Style / styleUrl / IconStyle は一切見ない
-      const coordNode =
-        pm.getElementsByTagName("Point")[0]
-          ?.getElementsByTagName("coordinates")[0];
-
-      if (!coordNode) continue;
-
-      const [lng, lat] = coordNode.textContent.trim().split(",").map(Number);
-      const pos = { lat, lng };
-
-      new google.maps.Marker({
-        map,
-        position: pos,
-        icon: iconUrl
-      });
-
-      bounds.extend(pos);
-    }
-  }
-
-  if (!bounds.isEmpty()) {
-    map.fitBounds(bounds);
-  }
-}
-
-// ★ 色分けはここだけ
-function getPinByFolderName(name) {
-  if (name === "ビジネス") {
-    return "https://maps.google.com/mapfiles/ms/icons/blue-dot.png";
-  }
-  if (name === "訪問しないお宅") {
-    return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
-  }
-  return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+  // My Maps の表示範囲に自動ズーム
+  kmlLayer.addListener("defaultviewport_changed", () => {
+    map.fitBounds(kmlLayer.getDefaultViewport());
+  });
 }
 </script>
 
