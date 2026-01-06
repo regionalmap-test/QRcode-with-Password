@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Small Area Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    /* マップ全体 */
+    #map { 
+      height: 100vh; 
+      width: 100vw; 
+    }
+
+    /* パスワード画面 */
+    #passwordDiv {
+      position: absolute; 
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.95); 
+      display: flex;
+      align-items: center; 
+      justify-content: center; 
+      flex-direction: column;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    #passwordInput {
+      width: 90%;
+      max-width: 400px;
+      padding: 1em;
+      font-size: 1.2em;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+      box-sizing: border-box;
+    }
+
+    #submitBtn {
+      width: 90%;
+      max-width: 400px;
+      padding: 1em;
+      font-size: 1.2em;
+      margin-top: 0.8em;
+      border-radius: 8px;
+      border: none;
+      background: #4285F4;
+      color: white;
+      box-sizing: border-box;
+    }
+
+    #passwordDiv h2 { font-size: 1.5em; margin-bottom: 1em; }
+    #msg { margin-top: 0.6em; color: red; font-size: 1.1em; }
+
+    @media (max-width: 480px) {
+      #passwordDiv h2 { font-size: 1.3em; }
+      #passwordInput, #submitBtn { font-size: 1.1em; padding: 0.9em; }
+    }
+  </style>
+
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBlkqCeYEheeLNZ-jEODKfVfznTbo-8jZE"></script>
+</head>
+<body>
+
+  <!-- パスワード入力画面 -->
+  <div id="passwordDiv">
+    <h2>パスワードを入力してください</h2>
+    <input type="password" id="passwordInput" placeholder="パスワード">
+    <button id="submitBtn">表示</button>
+    <p id="msg"></p>
+  </div>
+
+  <!-- マップ表示 -->
+  <div id="map"></div>
+
+  <script>
+    const correctPassword = "1914";
+    const submitBtn = document.getElementById("submitBtn");
+    const passwordInput = document.getElementById("passwordInput");
+    const passwordDiv = document.getElementById("passwordDiv");
+    const msg = document.getElementById("msg");
+
+    submitBtn.onclick = function() {
+      if (passwordInput.value === correctPassword) {
+        passwordDiv.style.display = "none";
+        initMap();
+      } else {
+        msg.textContent = "パスワードが違います。";
+      }
+    };
+
+    function initMap() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mid = urlParams.get("mid");
+
+      if (!mid) {
+        alert("mid パラメータが指定されていません");
+        return;
+      }
+
+      // マップ初期化
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: {lat: 35.68, lng: 139.76},
+        zoom: 15
+      });
+
+      // My Maps の KML レイヤー読み込み
+      const kmlUrl = `https://www.google.com/maps/d/kml?mid=${mid}&forcekml=1&_=${new Date().getTime()}`;
+      const kmlLayer = new google.maps.KmlLayer({
+        url: kmlUrl,
+        map: map,
+        preserveViewport: true
+      });
+
+      // KMLの範囲に合わせてズーム
+      kmlLayer.addListener('defaultviewport_changed', function() {
+        map.fitBounds(kmlLayer.getDefaultViewport());
+      });
+    }
+  </script>
+
+</body>
+</html>
