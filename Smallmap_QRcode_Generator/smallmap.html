@@ -1,38 +1,67 @@
-function generateSmallMapQRCodesCacheSafe() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("個別区域");
-  if (!sheet) {
-    Logger.log("シート「個別区域」が見つかりません");
-    return;
-  }
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Small Area Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  const lastRow = sheet.getLastRow();
-  const urls = sheet.getRange("D2:D" + lastRow).getValues();       // D列: GitHub Pages URL
-  const areaNumbers = sheet.getRange("A2:A" + lastRow).getValues(); // A列: 区域番号
-
-  for (let i = 0; i < urls.length; i++) {
-    const baseUrl = urls[i][0];
-    const areaNumber = areaNumbers[i][0];
-
-    if (!baseUrl || !areaNumber) continue;
-
-    // キャッシュ回避のためタイムスタンプを URL に追加
-    const urlWithTimestamp = baseUrl + "&_t=" + new Date().getTime();
-
-    // QRコード生成用 URL（qrserver.com）
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(urlWithTimestamp);
-
-    try {
-      const response = UrlFetchApp.fetch(qrUrl);
-      const blob = response.getBlob().setName("Map_QRcode_" + areaNumber + ".png");
-
-      // マイドライブ直下に保存
-      DriveApp.createFile(blob);
-    } catch (e) {
-      Logger.log("QRコード生成失敗: " + urlWithTimestamp + " / " + e);
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #passwordDiv {
+      position: absolute; top:0; left:0; right:0; bottom:0;
+      background: rgba(255,255,255,0.95);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 20px;
     }
+    #passwordInput {
+      width: 90%; max-width: 400px;
+      padding: 1em; font-size: 1.2em;
+      border-radius: 8px; border: 1px solid #aaa;
+      box-sizing: border-box;
+    }
+    #submitBtn {
+      width: 90%; max-width: 400px;
+      padding: 1em; font-size: 1.2em;
+      margin-top: 0.8em; border-radius: 8px; border:none;
+      background:#4285F4; color:white; box-sizing:border-box;
+    }
+    #msg { margin-top: 0.6em; color:red; font-size:1.1em; }
+  </style>
+</head>
+<body>
 
-    Utilities.sleep(500); // 安定化のため少し待つ
-  }
+<div id="passwordDiv">
+  <h2>パスワードを入力してください</h2>
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button id="submitBtn">表示</button>
+  <p id="msg"></p>
+</div>
 
-  SpreadsheetApp.getUi().alert("QRコード生成完了！（マイドライブ直下に保存されました）");
-}
+<script>
+  const correctPassword = "1914";
+  const submitBtn = document.getElementById("submitBtn");
+  const passwordInput = document.getElementById("passwordInput");
+  const passwordDiv = document.getElementById("passwordDiv");
+  const msg = document.getElementById("msg");
+
+  submitBtn.onclick = function() {
+    if (passwordInput.value === correctPassword) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mid = urlParams.get("mid");
+      if (!mid) {
+        msg.textContent = "midパラメータがありません。";
+        return;
+      }
+
+      // My Maps viewerリンクにリダイレクト
+      const viewerUrl = "https://www.google.com/maps/d/viewer?mid=" + mid;
+      window.location.href = viewerUrl;
+    } else {
+      msg.textContent = "パスワードが違います。";
+    }
+  };
+</script>
+
+</body>
+</html>
